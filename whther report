@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Day 8 – Weather with Promise.all</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Syne:wght@800&display=swap');
+
+    :root {
+      --bg: #0b0f1a;
+      --card: #141927;
+      --border: #1f2d45;
+      --accent: #38bdf8;
+      --text: #e2e8f0;
+      --muted: #64748b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background-image:
+        radial-gradient(ellipse at 20% 20%, #0e2a4a55 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, #0a1f3a55 0%, transparent 60%);
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      letter-spacing: -1px;
+      margin-bottom: 0.3rem;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 2.5rem;
+      font-weight: 300;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* SPINNER */
+    #spinner {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    #spinner.show { display: flex; }
+    .spin-ring {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ERROR */
+    #error-box {
+      display: none;
+      background: #2d0e0e;
+      border: 1px solid #7f1d1d;
+      color: #fca5a5;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      max-width: 400px;
+      text-align: center;
+    }
+    #error-box.show { display: block; }
+
+    /* CARDS GRID */
+    #cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+      width: 100%;
+      max-width: 860px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2rem 1.8rem;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp 0.5s ease both;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 40px #00000060;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      background: var(--glow, #38bdf820);
+      filter: blur(30px);
+    }
+    .card:nth-child(1) { --glow: #38bdf830; animation-delay: 0.1s; }
+    .card:nth-child(2) { --glow: #818cf830; animation-delay: 0.2s; }
+    .card:nth-child(3) { --glow: #f472b630; animation-delay: 0.3s; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-emoji { font-size: 3.5rem; line-height: 1; margin-bottom: 1rem; }
+    .card-city {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: -0.5px;
+      margin-bottom: 0.25rem;
+    }
+    .card-country {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 1.2rem;
+    }
+    .card-temp {
+      font-size: 2.8rem;
+      font-weight: 700;
+      letter-spacing: -2px;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .card-condition {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 300;
+    }
+    .card-details {
+      margin-top: 1.2rem;
+      padding-top: 1.2rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .detail span { display: block; color: var(--text); font-weight: 500; margin-top: 2px; }
+
+    .btn {
+      margin-bottom: 2.5rem;
+      padding: 0.75rem 2.2rem;
+      background: var(--accent);
+      color: #0b0f1a;
+      border: none;
+      border-radius: 999px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      letter-spacing: 0.5px;
+    }
+    .btn:hover { background: #7dd3fc; transform: scale(1.04); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  </style>
+</head>
+<body>
+
+  <h1>⛅ Sky Report</h1>
+  <p class="subtitle">Promise.all · Open-Meteo API · Day 8</p>
+
+  <button class="btn" id="fetchBtn" onclick="fetchAllCities()">Fetch Weather</button>
+
+  <div id="spinner">
+    <div class="spin-ring"></div>
+    <span>Fetching 3 cities simultaneously…</span>
+  </div>
+
+  <div id="error-box"></div>
+  <div id="cards"></div>
+
+  <script>
+    const CITIES = [
+      { name: "Mumbai",    country: "India",   lat: 19.076,  lon: 72.877  },
+      { name: "Tokyo",     country: "Japan",   lat: 35.689,  lon: 139.692 },
+      { name: "New York",  country: "USA",     lat: 40.712,  lon: -74.006 },
+    ];
+
+    const WMO = {
+      0:  { label: "Clear Sky",          emoji: "☀️"  },
+      1:  { label: "Mainly Clear",       emoji: "🌤️" },
+      2:  { label: "Partly Cloudy",      emoji: "⛅"  },
+      3:  { label: "Overcast",           emoji: "☁️"  },
+      45: { label: "Foggy",              emoji: "🌫️" },
+      48: { label: "Icy Fog",            emoji: "🌫️" },
+      51: { label: "Light Drizzle",      emoji: "🌦️" },
+      61: { label: "Slight Rain",        emoji: "🌧️" },
+      63: { label: "Moderate Rain",      emoji: "🌧️" },
+      65: { label: "Heavy Rain",         emoji: "🌧️" },
+      71: { label: "Slight Snow",        emoji: "🌨️" },
+      80: { label: "Rain Showers",       emoji: "🌦️" },
+      95: { label: "Thunderstorm",       emoji: "⛈️"  },
+    };
+
+    function getWeather(city) {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,weathercode,windspeed_10m,relative_humidity_2m&temperature_unit=celsius`;
+      return fetch(url).then(r => {
+        if (!r.ok) throw new Error(`Failed for ${city.name}`);
+        return r.json();
+      }).then(data => ({ city, data }));
+    }
+
+    function buildCard({ city, data }) {
+      const c = data.current;
+      const code = c.weathercode;
+      const info = WMO[code] || { label: "Unknown", emoji: "🌡️" };
+
+      return `
+        <div class="card">
+          <div class="card-emoji">${info.emoji}</div>
+          <div class="card-city">${city.name}</div>
+          <div class="card-country">${city.country}</div>
+          <div class="card-temp">${Math.round(c.temperature_2m)}°C</div>
+          <div class="card-condition">${info.label}</div>
+          <div class="card-details">
+            <div class="detail">💨 Wind<span>${c.windspeed_10m} km/h</span></div>
+            <div class="detail">💧 Humidity<span>${c.relative_humidity_2m}%</span></div>
+          </div>
+        </div>`;
+    }
+
+    async function fetchAllCities() {
+      const btn     = document.getElementById("fetchBtn");
+      const spinner = document.getElementById("spinner");
+      const errorBox= document.getElementById("error-box");
+      const cards   = document.getElementById("cards");
+
+      // Reset
+      btn.disabled   = true;
+      cards.innerHTML = "";
+      errorBox.classList.remove("show");
+      spinner.classList.add("show");
+
+      try {
+        // ✅ Promise.all -- all 3 fetches run simultaneously
+        const results = await Promise.all(CITIES.map(getWeather));
+        cards.innerHTML = results.map(buildCard).join("");
+      } catch (err) {
+        errorBox.textContent = `❌ Error: ${err.message}. Check your connection and try again.`;
+        errorBox.classList.add("show");
+      } finally {
+        spinner.classList.remove("show");
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

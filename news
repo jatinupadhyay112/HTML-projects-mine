@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>News Explorer </title>
+  </head>
+
+  <body>
+    <h1>Tech News</h1>
+
+    <p>
+      <button class="topic" data-topic="AI">AI</button>
+      <button class="topic" data-topic="javascript">JavaScript</button>
+      <button class="topic" data-topic="startup">Startup</button>
+      <button class="topic" data-topic="programing">Programming</button>
+    </p>
+
+    <hr>
+
+    <div id="news"></div>
+
+    <script>
+
+      const newsContainer = document.getElementById("news");
+
+      /* FETCH NEWS */
+
+      async function fetchnews(topic) {
+        try {
+          newsContainer.innerHTML = "Loading...";
+
+          const url = `https://hn.algolia.com/api/v1/search?query=${topic}`;
+
+          const res = await fetch(url);
+          const data = await res.json();
+          showNews(data.hits);
+        } catch (error) {
+          newsContainer.innerHTML = "Error loading news";
+        }
+      }
+
+      /* DISPLAY NEWS */
+
+      function showNews(articles){
+
+        newsContainer.innerHTML = "";
+
+        articles.forEach(article => {
+
+          const title = article.title || article.story_title;
+          const url = article.url || article.story_url;
+
+          if(!url) return;
+
+          const div = document.createElement("div");
+
+          div.innerHTML = `
+          <h3>${title}</h3>
+          <a href="${url}" target="_blank">Read more</a>
+          <hr>`;
+          newsContainer.appendChild(div);
+        })
+      }
+
+      // Add event listeners to buttons
+      document.querySelectorAll('.topic').forEach(button => {
+        button.addEventListener('click', () => {
+          fetchnews(button.dataset.topic);
+        });
+      });
+
+      // Load initial news
+      fetchnews('AI');
+    </script>
+  </body>
+</html>
